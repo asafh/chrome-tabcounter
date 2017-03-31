@@ -1,14 +1,13 @@
-function Counter(name, active) {
+"use strict";
+
+function Counter(name, listener) {
 	this.count = 0;
 	this.name = name;
-	this.setActive(active);
+    this.listener = listener;
 }
 Counter.prototype.setCount = function(count) {
 	this.count = count;
-	this.updateDisplay();
-};
-Counter.prototype.getCount = function(count) {
-	return this.count;
+    this.listener(this);
 };
 Counter.prototype.increment = function() {
 	this.setCount(this.count+1);
@@ -16,18 +15,8 @@ Counter.prototype.increment = function() {
 Counter.prototype.decrement = function() {
 	this.setCount(this.count-1);
 };
-Counter.prototype.setActive = function(active) {
-	this.active = !!active;
-	this.updateDisplay();
-}
-Counter.prototype.updateDisplay = function() {
-	if(this.active) {
-		chrome.browserAction.setBadgeText({text: String(this.count)});
-		chrome.browserAction.setTitle({title: this.name});
-	}
-};
-function TabCounter(active) {
-	Counter.call(this,"Tabs",active);
+function TabCounter(listener) {
+	Counter.call(this,"Tabs",listener);
 	var self = this;
 	chrome.tabs.query({}, function(tabs) {
 		self.setCount(tabs.length);	
@@ -37,8 +26,8 @@ function TabCounter(active) {
 }
 TabCounter.prototype = new Counter();
 
-function WindowCounter(active) {
-	Counter.call(this,"Windows",active);
+function WindowCounter(listener) {
+	Counter.call(this,"Windows",listener);
 	var self = this;
 	chrome.windows.getAll(function(windows) {
 		self.setCount(windows.length);	
@@ -48,19 +37,36 @@ function WindowCounter(active) {
 }
 WindowCounter.prototype = new Counter();
 
-var counters = [
-	new TabCounter(true),
-	new WindowCounter()
-];
+
+function onUpdate() {
+    var text = "",
+        title = mode;
+
+    if(mode !== "Windows") {
+        text += counters.Tabs.count;
+    }
+    if(mode === "Both") {
+        text += "/";
+        title = "Tabs over Windows";
+    }
+    if(mode !== "Tabs") {
+        text += counters.Windows.count;
+    }
+    chrome.browserAction.setBadgeText({text: text});
+    chrome.browserAction.setTitle({title: title});
+}
+
+const counters = {
+    "Tabs": new TabCounter(onUpdate),
+    "Windows": new WindowCounter(onUpdate)
+}
+const modes = Object.keys(counters).concat(["Both"]);
+var mode = modes[0];
+
 
 chrome.browserAction.onClicked.addListener(function() {
-	var i;
-	for(i =0; i < counters.length; ++i) {
-		if(counters[i].active) {
-			counters[i].setActive(false);
-			break;
-		}
-	}
-	var enableIndex = (i+1)%counters.length;
-	counters[enableIndex].setActive(true);
+	const nextIndex = (modes.indexOf(mode)+1)%modes.length;
+    mode = modes[nextIndex];
+	onUpdate();
 });
+onUpdate();
