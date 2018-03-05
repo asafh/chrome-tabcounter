@@ -58,12 +58,15 @@ function onUpdate() {
         count = counters.Windows.count;
     }
 
-    count = count <= 40 ? count : 40;
-    backgroundColor = heatMapColorforValue(count / 40.0);
+    backgroundColor = heatMapColorforValue(scaleCount(count));
     fontColor = contrastColor(...backgroundColor);
 
     draw({backgroundColor: backgroundColor, fontColor: fontColor, text: text});
     chrome.browserAction.setTitle({title: title});
+}
+
+function scaleCount(value) {
+    return Math.pow(1.0 - 1.0 / Math.log(value + 3), 0.3);
 }
 
 function heatMapColorforValue(value) {
